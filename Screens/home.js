@@ -23,6 +23,9 @@ const HomeScreen = ({ navigation }) => {
       title: "Plaza de Armas Talca",
     },
   ];
+  const handleDetailPress = () => {
+    navigation.navigate("Details"); // Navega a la pantalla de login
+  };
 
   return (
     <View style={styles.container}>
@@ -48,10 +51,7 @@ const HomeScreen = ({ navigation }) => {
           onChangeText={setSearchQuery}
         />
       </View>
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => navigation.navigate("Details")} // Navega a la pantalla de detalles
-      >
+      <TouchableOpacity style={styles.addButton} onPress={handleDetailPress}>
         <Text style={styles.buttonText}>+</Text>
       </TouchableOpacity>
     </View>
