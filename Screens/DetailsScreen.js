@@ -93,7 +93,7 @@ const DetailsScreen = ({ route, navigation }) => {
   };
 
   async function verifyPermission() {
-    const { status } = await Camera.getCameraPermissionsAsync();
+    const { status } = await Camera.requestCameraPermissionsAsync();
 
     if (status === "undetermined") {
       const { status: newStatus } =
