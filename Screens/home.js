@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -7,22 +7,38 @@ import {
   TouchableOpacity,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import Icon from "react-native-vector-icons/MaterialIcons";
+import { getData } from "../http/index";
 
 const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [region, setRegion] = useState({
-    latitude: -35.4409, // Talca, Chile
+    latitude: -35.4409,
     longitude: -71.6543,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+  const [markers, setMarkers] = useState([]);
 
-  const markers = [
-    {
-      coordinate: { latitude: -35.4421, longitude: -71.6548 },
-      title: "Plaza de Armas Talca",
-    },
-  ];
+  const handleDetailPress = () => {
+    navigation.navigate("Details");
+  };
+  const handleFilterPress = () => {
+    navigation.navigate("filtros");
+  };
+  useEffect(() => {
+    const fetchReports = async () => {
+      const result = await getData();
+      if (result.success) {
+        setMarkers(result.reports);
+        console.log("resultados de la base de datos:  ", result);
+      } else {
+        Alert.alert("Error", "No se pudieron obtener los datos de Firebase.");
+      }
+    };
+
+    fetchReports();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -34,24 +50,28 @@ const HomeScreen = ({ navigation }) => {
       >
         {markers.map((marker, index) => (
           <Marker
-            key={index}
-            coordinate={marker.coordinate}
-            title={marker.title}
+            key={marker.id}
+            coordinate={{
+              latitude: marker.location.latitude,
+              longitude: marker.location.longitude,
+            }}
+            title={marker.description}
           />
         ))}
       </MapView>
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Busca Aquí"
+          placeholder="Busca Aquí­"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
       </View>
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => navigation.navigate("Details")} // Navega a la pantalla de detalles
-      >
+
+      <TouchableOpacity style={styles.iconButton} onPress={handleFilterPress}>
+        <Icon name="filter-list" size={30} color="#000" />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.addButton} onPress={handleDetailPress}>
         <Text style={styles.buttonText}>+</Text>
       </TouchableOpacity>
     </View>
@@ -78,6 +98,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 20,
     paddingHorizontal: 15,
+  },
+  iconButton: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    backgroundColor: "#fff",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
   },
   addButton: {
     position: "absolute",
