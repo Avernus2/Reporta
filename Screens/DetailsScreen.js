@@ -87,7 +87,7 @@ const DetailsScreen = ({ route, navigation }) => {
       console.error("Error en handleSubmit:", error);
       console.log(
         "Error",
-        "Hubo un error al enviar el reporte. Por favor, intenta de nuevo."
+        "Hubo un error al enviar el reporte. Por favor, intenta de nuevo"
       );
     }
   };
