@@ -8,27 +8,31 @@ import {
   TextInput,
   Image,
   ScrollView,
+  Alert,
 } from "react-native";
 import { launchImageLibrary, launchCamera } from "react-native-image-picker";
 import * as Location from "expo-location";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { launchCameraAsync, useCameraPermissions } from "expo-image-picker";
+import * as ImagePicker from "expo-image-picker";
 import { Camera } from "expo-camera";
 import { sendReport } from "../http/index";
+import axios from "axios";
 
 const DetailsScreen = ({ route, navigation }) => {
   const [selectedReportType, setSelectedReportType] = useState(null);
   const [reportDescription, setReportDescription] = useState("");
+  const [reportTitle, setReportTitle] = useState("");
   const [imageUri, setImageUri] = useState(null);
   const [location, setLocation] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
 
   const reportTypes = [
-    { label: "Reparaciones", value: "reparaciones" },
-    { label: "Baches", value: "baches" },
-    { label: "Obras Públicas", value: "obras_publicas" },
-    { label: "Calles inundadas", value: "calles_inundadas" },
-    { label: "Cerca de mi Ubicación", value: "cerca_ubicacion" },
+    { label: "Reparaciones", value: "Reparaciones" },
+    { label: "Baches", value: "Baches" },
+    { label: "Obras Públicas", value: "Obras Publicas" },
+    { label: "Calles inundadas", value: "Calles Inundadas" },
+    { label: "Cerca de mi Ubicación", value: "Cerca de mi Ubicación" },
   ];
 
   const handleReportTypeSelection = (value) => {
@@ -38,12 +42,48 @@ const DetailsScreen = ({ route, navigation }) => {
   const handleDescriptionChange = (text) => {
     setReportDescription(text);
   };
+  const handleTitleChange = (text) => {
+    // Nueva función para el título
+    setReportTitle(text);
+  };
 
   const handleSelectionPress = () => {
     navigation.navigate("select");
   };
   const handleUploadPress = () => {
-    navigation.navigate("Upload");
+    // Ya no necesitas navegar a otra pantalla, directamente se selecciona la imagen
+    handleImagePicker();
+  };
+
+  const handleImagePicker = async () => {
+    // Solicitar permisos para acceder a la galería
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permiso denegado",
+        "Se requiere acceso a la galería para continuar"
+      );
+      return;
+    }
+
+    // Abrir la galería para seleccionar una imagen
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, // Permite editar la imagen antes de seleccionarla
+      quality: 1, // Establece la calidad de la imagen
+      selectionLimit: 1, // Limita la selección a 1 imagen
+    });
+
+    // Verifica si el usuario no canceló la selección y guarda la imagen
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const imageUri = result.assets[0].uri; // Accede correctamente al URI de la primera imagen
+      setImageUri(imageUri); // Almacena solo la URI de la imagen seleccionada
+    } else {
+      Alert.alert(
+        "Selección cancelada",
+        "No se ha seleccionado ninguna imagen."
+      );
+    }
   };
 
   React.useEffect(() => {
@@ -52,36 +92,80 @@ const DetailsScreen = ({ route, navigation }) => {
     }
   }, [route.params?.maplocation]);
 
+  const uploadImageToCloudinary = async (imageUri) => {
+    const formData = new FormData();
+    formData.append("file", {
+      uri: imageUri,
+      type: "image/jpeg", // Verifica si el tipo correcto es image/jpeg o image/png
+      name: "photo.jpg", // O el nombre del archivo
+    });
+    formData.append("upload_preset", "reportalo"); // Asegúrate de que este preset sea correcto
+
+    try {
+      const response = await axios.post(
+        "https://api.cloudinary.com/v1_1/datdiejvy/image/upload", // Reemplaza con tu nombre de Cloudinary
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      console.log("Imagen subida exitosamente:", response.data);
+      return response.data.secure_url; // Devuelve la URL de la imagen subida
+    } catch (error) {
+      console.error(
+        "Error al subir la imagen:",
+        error.response?.data || error.message
+      );
+      return null;
+    }
+  };
+
   const handleSubmit = async () => {
     try {
+      if (!selectedReportType || !reportTitle || !reportDescription) {
+        console.log("Error", "Por favor completa todos los campos.");
+        return;
+      }
+
+      let imageUrl = null;
       if (imageUri) {
-        const reportData = {
-          reportType: selectedReportType,
-          description: reportDescription,
-          imageUrl: null,
-          location: location
-            ? {
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }
-            : route.params?.maplocation,
-          timestamp: new Date().toISOString(),
-        };
+        imageUrl = await uploadImageToCloudinary(imageUri); // Subir la imagen a Cloudinary
+      }
 
-        const result = await sendReport(reportData);
+      if (!imageUrl) {
+        console.log("Error", "No se ha podido subir la imagen.");
+        return;
+      }
 
-        if (result.success) {
-          console.log("Éxito", "Reporte enviado con éxito");
-          navigation.navigate("Reportalo");
-        } else {
-          console.error("Error al enviar el reporte:", result.error);
-          console.log(
-            "Error",
-            "Hubo un error al enviar el reporte. Por favor, intenta de nuevo."
-          );
-        }
+      const reportData = {
+        title: reportTitle,
+        reportType: selectedReportType,
+        description: reportDescription,
+        location: location
+          ? {
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }
+          : route.params?.maplocation,
+        timestamp: new Date().toISOString(),
+        imageUrl, // Agregar la URL de la imagen subida
+      };
+
+      // Aquí envías el reporte a tu servidor
+      const result = await sendReport(reportData);
+
+      if (result.success) {
+        console.log("Éxito", "Reporte enviado con éxito");
+        navigation.navigate("Reportalo");
       } else {
-        console.log("Error", "No se ha proporcionado una imagen.");
+        console.error("Error al enviar el reporte:", result.error);
+        console.log(
+          "Error",
+          "Hubo un error al enviar el reporte. Por favor, intenta de nuevo."
+        );
       }
     } catch (error) {
       console.error("Error en handleSubmit:", error);
@@ -145,6 +229,13 @@ const DetailsScreen = ({ route, navigation }) => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
+        <Text style={styles.title}>Título del Reporte</Text>
+        <TextInput
+          style={styles.titleInput} // Estilo para el título
+          placeholder="Escribe el título del reporte"
+          value={reportTitle}
+          onChangeText={handleTitleChange} // Cambia el estado del título
+        />
         <Text style={styles.title}>Seleccionar tipo de reporte</Text>
         <View style={styles.reportTypes}>
           {reportTypes.map((reportType) => (
@@ -244,6 +335,19 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  titleInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 20,
+    fontSize: 16,
   },
   title: {
     fontSize: 18,

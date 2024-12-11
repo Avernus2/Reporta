@@ -5,7 +5,7 @@ const databaseURL = "https://reportalo-5bf74-default-rtdb.firebaseio.com/";
 export const sendReport = async (reportData) => {
   try {
     const response = await axios.post(
-      databaseURL + "/reports.json",
+      databaseURL + "/reports.json", // Asegúrate de que esta URL esté bien configurada en Firebase
       reportData
     );
 
@@ -14,7 +14,6 @@ export const sendReport = async (reportData) => {
     return { success: true, reportId };
   } catch (error) {
     console.error("Error al enviar el reporte:", error);
-
     return { success: false, error };
   }
 };

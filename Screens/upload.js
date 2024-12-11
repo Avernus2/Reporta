@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,32 +6,54 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  Alert,
 } from "react-native";
-import { launchImageLibrary } from "react-native-image-picker";
+import * as ImagePicker from "expo-image-picker";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
-const ImageGallerySelection = ({ navigation }) => {
-  const [images, setImages] = useState([]);
-  const [tab, setTab] = useState("Recientes");
+const ImageGallerySelection = () => {
+  const [images, setImages] = useState([]); // Cambiar a un array para manejar múltiples imágenes
+  const [tab, setTab] = useState("Recientes"); // Agregar estado para pestaña activa
 
-  const selectImages = async () => {
-    const result = await launchImageLibrary({
-      mediaType: "photo",
-      selectionLimit: 0,
+  // Función para manejar la selección de imagen
+  const handleImagePicker = async () => {
+    // Solicitar permisos para acceder a la galería
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permiso denegado",
+        "Se requiere acceso a la galería para continuar"
+      );
+      return;
+    }
+
+    // Abrir la galería para seleccionar una imagen
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, // Permite editar la imagen antes de seleccionarla
+      quality: 1, // Establece la calidad de la imagen
     });
-    if (!result.didCancel && result.assets) {
-      setImages(result.assets);
+
+    if (!result.canceled) {
+      setImages((prevImages) => [...prevImages, result.assets[0].uri]); // Agregar nuevas imágenes
     }
   };
 
+  // Cambio de pestaña entre 'Recientes' y 'Galeria'
   const handleTabChange = (selectedTab) => {
     setTab(selectedTab);
   };
 
+  // Confirmar la selección de imágenes y navegar hacia atrás
   const handleConfirmSelection = () => {
     console.log("Imágenes seleccionadas:", images);
-    navigation.goBack();
+    // Aquí deberías realizar alguna acción con las imágenes seleccionadas
+    // navigation.goBack(); // Si tienes navegación, descomentar esta línea
   };
+
+  useEffect(() => {
+    console.log("Estado actualizado de imágenes:", images); // Verifica el estado
+  }, [images]);
 
   return (
     <View style={styles.container}>
@@ -68,18 +90,27 @@ const ImageGallerySelection = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
+      {/* Muestra las imágenes seleccionadas */}
       <FlatList
         data={images}
         keyExtractor={(item, index) => index.toString()}
         numColumns={2}
-        renderItem={({ item }) => (
-          <View style={styles.imageContainer}>
-            <Image source={{ uri: item.uri }} style={styles.image} />
-          </View>
-        )}
+        renderItem={({ item }) => {
+          console.log("Imagen actual:", item); // Verifica el contenido de cada imagen
+          return (
+            <View style={styles.imageContainer}>
+              {item ? (
+                <Image source={{ uri: item }} style={styles.image} />
+              ) : (
+                <Text>No se pudo cargar la imagen</Text>
+              )}
+            </View>
+          );
+        }}
       />
 
-      <TouchableOpacity style={styles.selectButton} onPress={selectImages}>
+      {/* Botón para seleccionar más imágenes */}
+      <TouchableOpacity style={styles.selectButton} onPress={handleImagePicker}>
         <Text style={styles.selectButtonText}>Seleccionar Imágenes</Text>
       </TouchableOpacity>
     </View>
