@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 import { View, Text, Switch, TouchableOpacity, StyleSheet } from "react-native";
 
-const FiltersScreen = ({ navigation }) => {
-  const [filters, setFilters] = useState({
-    reparaciones: false,
-    baches: true,
-    obrasPublicas: true,
-    callesInundadas: true,
-    cercaDeMiUbicacion: true,
-  });
+const FiltersScreen = ({ navigation, route }) => {
+  const [filters, setFilters] = useState(
+    route.params?.filters || {
+      reparaciones: false,
+      baches: true,
+      obrasPublicas: true,
+      callesInundadas: true,
+      cercaDeMiUbicacion: true,
+    }
+  );
 
   const toggleFilter = (filter) => {
     setFilters({
@@ -19,7 +21,9 @@ const FiltersScreen = ({ navigation }) => {
 
   const handleContinue = () => {
     console.log("Continuar presionado con los siguientes filtros:", filters);
-    navigation.goBack();
+
+    // Pasar los filtros seleccionados como parámetros al componente anterior
+    navigation.navigate("Reportalo", { filters });
   };
 
   return (
